@@ -1,5 +1,6 @@
 <p align="center">
-  <strong>concarne</strong>, an Express-like web framework for Carne<br>
+  <img src="https://github.com/openpeeps/carne/blob/main/.github/carne_logo.png" alt="Carne Logo" width="140px" height="140px"><br>
+  <strong>ConCarne</strong>, an Express-like web framework for <a href="https://github.com/openpeeps/carne">Carne</a><br>
   Routing, middleware and JSON APIs in pure JS on top of <code>std/http</code>.
 </p>
 
