@@ -96,21 +96,58 @@ function concarne() {
     all: function (path) {
       return addRoute("ALL", path, Array.prototype.slice.call(arguments, 1));
     },
-    listen: function (port, host, cb) {
-      if (typeof host === "function") {
-        cb = host;
-        host = undefined;
+    listen: function (port, host, opts, cb) {
+      // listen(port[, host][, opts][, cb]): single (default) or multi
+      // worker. opts passes through to http.serve: {workers?,
+      // keepAliveMs?, readTimeoutMs?, maxBodySize?}. workers (1..64,
+      // default 1) serves from N full runtimes re-running the script,
+      // so gate driver code (fetch/close/asserts) on process.isWorker.
+      var rest = Array.prototype.slice.call(arguments, 1);
+      host = undefined;
+      opts = undefined;
+      cb = undefined;
+      for (var i = 0; i < rest.length; i++) {
+        var a = rest[i];
+        if (typeof a === "function") {
+          if (cb !== undefined) {
+            throw new Error("concarne.listen: duplicate callback");
+          }
+          cb = a;
+        } else if (typeof a === "string") {
+          if (host !== undefined) {
+            throw new Error("concarne.listen: duplicate host");
+          }
+          host = a;
+        } else if (a !== null && typeof a === "object" && !Array.isArray(a)) {
+          if (opts !== undefined) {
+            throw new Error("concarne.listen: duplicate opts");
+          }
+          opts = a;
+        } else if (a === undefined) {
+          continue;
+        } else {
+          throw new Error("concarne.listen: bad argument #" + (i + 2));
+        }
       }
       ensureCompiled();
       var handler = createDispatcher(stack);
-      var srv = host === undefined
-        ? http.serve(port, handler)
-        : http.serve(port, host, handler);
-      app._server = {port: srv.port, host: srv.host};
+      var srv;
+      if (host === undefined && opts === undefined) {
+        srv = http.serve(port, handler);
+      } else if (host === undefined) {
+        srv = http.serve(port, opts, handler);
+      } else if (opts === undefined) {
+        srv = http.serve(port, host, handler);
+      } else {
+        srv = http.serve(port, host, opts, handler);
+      }
+      var workers = (opts && typeof opts.workers === "number") ? opts.workers : 1;
+      app._server = {port: srv.port, host: srv.host, workers: workers};
       if (cb) cb(app._server);
       return {
         port: srv.port,
         host: srv.host,
+        workers: workers,
         close: function () { return app.close(); }
       };
     },

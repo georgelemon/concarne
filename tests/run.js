@@ -4,11 +4,13 @@ var basics = require("./test_basics.js");
 var router = require("./test_router.js");
 var bodies = require("./test_bodies.js");
 var errors = require("./test_errors.js");
+var workers = require("./test_workers.js");
 
 (async () => {
   await basics.run();
   await router.run();
   await bodies.run();
   await errors.run();
+  await workers.run();
   console.log("all concarne tests passed");
 })();

@@ -63,9 +63,21 @@ content type), `send(string|object|number)`, `json(obj)`,
 ignored. `concarne.HttpError(status, message)` builds errors the default
 handler respects.
 
-`app.listen(port[, host][, cb])` returns `{port, host, close}`; `app.close()`
-stops the server (`false` when not listening). Servers hold the event loop
-until closed, like Node.
+`app.listen(port[, host][, opts][, cb])` returns `{port, host, workers,
+close}`; `app.close()` stops the server (`false` when not listening).
+Servers hold the event loop until closed, like Node. `opts` passes
+through to `std/http`: `{workers?, keepAliveMs?, readTimeoutMs?,
+maxBodySize?}`. The default `workers: 1` serves single-threaded;
+`workers: N` (2..64) serves from N full runtimes sharing the port.
+
+```js
+const app = concarne();
+app.get("/hi/:name", (req, res) => res.send("hi " + req.params.name));
+
+// Single: app.listen(3000);
+// Multi (see examples/workers.js):
+app.listen(3000, {workers: 4});
+```
 
 ## Limits in v1
 
@@ -73,10 +85,26 @@ Sync route handlers only (the runtime expects the response back from the
 serve handler). No static file serving (use `std/fs` directly for text).
 CommonJS only, like every Carne package.
 
+With `workers > 1` each worker is an isolated runtime re-running your
+script: no shared state, and module-level side effects (counters, caches,
+`require` setup) run once per worker. Gate driver code on
+`process.isWorker` (`false` on main, `true` on workers): every context
+must call `app.listen`, but only main should fetch/assert/close.
+
+```js
+const app = concarne();
+app.get("/", (req, res) => res.send("hi"));
+app.listen(3000, {workers: 4});
+if (!process.isWorker) {
+  // driver: fetch, test, then app.close()
+}
+```
+
 ## Tests
 
 ```bash
-carne run tests/run.js
+carne run tests/run.js          # single-worker suite
+carne run tests/run_workers.js  # multi-worker suite (own process)
 ```
 
 ## License
